@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { Stage, Layer, Rect, Text, Image as KImage, Transformer } from 'vue-konva'
+import { Stage, Layer, Text, Image as KImage } from 'vue-konva'
 
-const stageRef = ref()
-const layerRef = ref()
-const trRef = ref()
+const stageRef = ref<any>(null)
+const layerRef = ref<any>(null)
 
 const nodes = ref<any[]>([])
 const selectedId = ref<string | null>(null)
@@ -21,7 +20,7 @@ function onDeselect(e: MouseEvent) {
   if (e.target === e.currentTarget) selectedId.value = null
 }
 
-const imageObj = new window.Image()
+const imageObj = ref<HTMLImageElement | null>(null)
 const imageUrl = ref<string | null>(null)
 
 function onFile(e: Event) {
@@ -29,12 +28,15 @@ function onFile(e: Event) {
   if (!f) return
   const url = URL.createObjectURL(f)
   imageUrl.value = url
-  imageObj.src = url
+  if (process.client) {
+    imageObj.value = new Image()
+    imageObj.value.src = url
+  }
 }
 
 onMounted(() => {
-  imageObj.onload = () => {
-    // trigger re-render
+  if (!imageObj.value && process.client) {
+    imageObj.value = new Image()
   }
 })
 
@@ -56,24 +58,25 @@ function download() {
       <NuxtLink class="px-3 py-2 rounded bg-gray-200" to="/">Back to Wizard</NuxtLink>
     </div>
 
-    <div class="border rounded w-full overflow-auto" @mousedown="onDeselect">
-      <Stage :config="{ width: 1024, height: 1024 }" ref="stageRef">
-        <Layer ref="layerRef">
-          <KImage v-if="imageUrl" :image="imageObj" :x="0" :y="0" />
+    <ClientOnly>
+      <div class="border rounded w-full overflow-auto" @mousedown="onDeselect">
+        <Stage :config="{ width: 1024, height: 1024 }" ref="stageRef">
+          <Layer ref="layerRef">
+            <KImage v-if="imageUrl && imageObj" :image="imageObj" :x="0" :y="0" />
 
-          <Text
-            v-for="n in nodes"
-            :key="n.id"
-            :x="n.x" :y="n.y"
-            :text="n.text" :fontSize="n.fontSize" :fill="n.fill"
-            draggable
-            @click="onSelect(n.id)"
-          />
-
-          <Transformer v-if="selectedId" :nodes="[...$el?.getStage()?.findOne(`#${selectedId}`)]" ref="trRef" />
-        </Layer>
-      </Stage>
-    </div>
+            <Text
+              v-for="n in nodes"
+              :key="n.id"
+              :id="n.id"
+              :x="n.x" :y="n.y"
+              :text="n.text" :fontSize="n.fontSize" :fill="n.fill"
+              draggable
+              @click="onSelect(n.id)"
+            />
+          </Layer>
+        </Stage>
+      </div>
+    </ClientOnly>
   </main>
 </template>
 
